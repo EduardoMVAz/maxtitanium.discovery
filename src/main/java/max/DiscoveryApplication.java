@@ -1,4 +1,4 @@
-package main.java.max;
+package max;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
