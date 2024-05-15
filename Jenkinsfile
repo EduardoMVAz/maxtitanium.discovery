@@ -7,6 +7,32 @@ pipeline {
             }
         }
 
+        stage('Post Security Scan') {
+            steps {
+                script {
+                    // Retrieve the Git URL
+                    def gitUrl = sh(script: 'git config --get remote.origin.url', returnStdout: true).trim()
+
+                    // Hardcoded id_service
+                    def idService = '4b4442ee-ce75-422e-8151-f9788062fd4e'
+
+                    // Create the JSON payload using string manipulation
+                    def newPayload = """
+                    {
+                        "repo_url": "${gitUrl}",
+                        "id_service": "${idService}"
+                    }
+                    """
+
+                    // echoes the payload to the console
+                    echo newPayload
+
+                    // Post the new JSON payload to the API
+                    sh "curl -X POST -H 'Content-Type: application/json' -d '${newPayload}' https://scan-api-44s6izf3qa-uc.a.run.app/scan"
+                }
+            }
+        }
+
         stage('Build Image') {
             steps {
                 script {
@@ -21,6 +47,15 @@ pipeline {
                         account.push("${env.BUILD_ID}")
                         account.push("latest")
                     }
+                }
+            }
+        }
+        stage('Deploy on k8s') {
+            steps {
+                witheCredentials([ string(credentialsId: 'minikube-credential', variable: 'api_token') ]) {
+                    sh 'kubectl --token $api_token --server https://host.docker.internal:39517 --insecure-skip-tls-verify=true apply -f ./k8s/deployment.yaml '
+                    sh 'kubectl --token $api_token --server https://host.docker.internal:39517 --insecure-skip-tls-verify=true apply -f ./k8s/service.yaml '
+                    sh 'kubectl --token $api_token --server https://host.docker.internal:39517 --insecure-skip-tls-verify=true apply -f ./k8s/configmap.yaml'
                 }
             }
         }
